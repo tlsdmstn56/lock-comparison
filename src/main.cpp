@@ -2,47 +2,11 @@
 #include <chrono>
 #include <thread>
 #include <vector>
-#include <atomic>
 
-struct TASLock {
-    TASLock(): _lock(0) {}
-    void lock() {
-        // TODO: inline asm TAS
-    }
-    void unlock() {
-        _lock = 0;
-    }
-private:
-    int32_t _lock;
-};
-
-struct TATASLock {
-    TATASLock(): _lock(0) {}
-    void lock() {
-        // non-atomic lock read
-        while (_lock == 0) {
-            // TODO: inline asm TAS
-        }
-    }
-    void unlock() {
-        _lock = 0;
-    }
-private:
-    int32_t _lock;
-};
-
-
-struct SampleLock {
-    SampleLock(): _lock(0) {}
-    void lock() {
-        _lock = 1;
-    }
-    void unlock() {
-        _lock = 0;
-    }
-private:
-    int32_t _lock;
-};
+#include "tas_lock.hpp"
+#include "tas_sample_lock.hpp"
+#include "tatas_lock.hpp"
+#include "tatas_sample_lock.hpp"
 
 template<class LockType>
 class TestCase {
@@ -92,11 +56,21 @@ int main(int argc, char** argv) {
     size_t num_threads = std::atoi(argv[1]);
     size_t num_increase = std::atoi(argv[2]);
     {
-        TestCase<TASLock> testcase(num_threads, num_increase);  
+        TestCase<TASSampleLock> testcase(num_threads, num_increase);  
         testcase.run();
     }
     {
-        TestCase<TATASLock> testcase(num_threads, num_increase);  
+        TestCase<TASLock> testcase(num_threads, num_increase);  
+        testcase.run();
+    }
+    // TODO: uncomment
+    // {
+    //     TestCase<TATASLock> testcase(num_threads, num_increase);  
+    //     testcase.run();
+    // }
+    {
+        // TODO: fix
+        TestCase<TATASSampleLock> testcase(num_threads, num_increase);  
         testcase.run();
     }
 
