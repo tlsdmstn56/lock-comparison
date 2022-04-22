@@ -5,5 +5,5 @@ add_executable(lock_comparison
 )
 
 target_link_libraries(lock_comparison
-PRIVATE pthread
+    PRIVATE pthread
 )

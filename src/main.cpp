@@ -3,49 +3,16 @@
 #include <thread>
 #include <vector>
 
-#include "tas_lock.hpp"
-#include "tas_sample_lock.hpp"
-#include "tatas_lock.hpp"
-#include "tatas_sample_lock.hpp"
+#include "lock/tas_lock.hpp"
+#include "lock/tas_sample_lock.hpp"
+#include "lock/tatas_lock.hpp"
+#include "lock/tatas_sample_lock.hpp"
+#include "lock/amd_spinlock.hpp"
+#include "lock/ticket_spinlock.hpp"
+#include "lock/pthread.hpp"
 
-template<class LockType>
-class TestCase {
-public:
-    TestCase(size_t num_threads, size_t num_increase): num_threads(num_threads), num_increase(num_increase), counter(0){}
-
-    void run() {
-        using namespace std::chrono;
-        std::vector<std::thread> threads;
-        threads.reserve(num_threads);
-        auto begin = std::chrono::steady_clock::now();
-        for (size_t i=0; i<num_threads; ++i) {
-            threads.emplace_back(&TestCase<LockType>::increase_counter, this);
-        }
-
-        for (auto& thread : threads) {
-            thread.join();
-        }
-        auto end = steady_clock::now();
-        std::cout << "Expected counter: " << num_threads * num_increase << '\n';
-        std::cout << "Actual counter: " << counter << '\n';
-        std::cout << "Time: " << duration_cast<milliseconds>(end - begin).count() << " ms\n" ;
-    }
-
-private:
-
-    void increase_counter() {
-        for (size_t i=0; i<num_increase; ++i) {
-            lock.lock();
-            ++counter;
-            lock.unlock();
-        }
-    }
-
-    size_t num_threads;
-    size_t num_increase;
-    uint64_t counter = 0;
-    LockType lock;
-};
+#include "benchmark/counter.hpp"
+#include "benchmark/linked_list.hpp"
 
 int main(int argc, char** argv) {
     if (argc != 3) {
@@ -56,23 +23,38 @@ int main(int argc, char** argv) {
     size_t num_threads = std::atoi(argv[1]);
     size_t num_increase = std::atoi(argv[2]);
     {
-        TestCase<TASSampleLock> testcase(num_threads, num_increase);  
-        testcase.run();
+        CounterIncrementBenchmark<TASSampleLock> testcase("TASSampleLock", num_threads, num_increase);  
+        testcase.run().print();
     }
     {
-        TestCase<TASLock> testcase(num_threads, num_increase);  
-        testcase.run();
+        CounterIncrementBenchmark<TASLock> testcase("TASLock", num_threads, num_increase);  
+        testcase.run().print();
     }
     // TODO: uncomment
     // {
-    //     TestCase<TATASLock> testcase(num_threads, num_increase);  
-    //     testcase.run();
+    //     CounterIncrementBenchmark<TATASLock> testcase(num_threads, num_increase);  
+    //     testcase.run().print();
     // }
     {
         // TODO: fix
-        TestCase<TATASSampleLock> testcase(num_threads, num_increase);  
-        testcase.run();
+        CounterIncrementBenchmark<TATASSampleLock> testcase("TATASSampleLock", num_threads, num_increase);  
+        testcase.run().print();
     }
-
+    {
+        CounterIncrementBenchmark<spinlock_amd> testcase("spinlock_amd", num_threads, num_increase);  
+        testcase.run().print();
+    }
+    {
+        CounterIncrementBenchmark<ticket_spinlock> testcase("ticket_spinlock", num_threads, num_increase);  
+        testcase.run().print();
+    }
+    {
+        CounterIncrementBenchmark<PThreadSpinLock> testcase("PThreadSpinLock", num_threads, num_increase);  
+        testcase.run().print();
+    }
+    {
+        CounterIncrementBenchmark<PThreadSleepLock> testcase("PThreadSleepLock", num_threads, num_increase);  
+        testcase.run().print();
+    }
     return 0;
 }
